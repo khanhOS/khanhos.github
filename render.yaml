@@ -1,0 +1,37 @@
+services:
+  - type: web
+    name: khanhos
+    runtime: node
+    plan: free
+    buildCommand: npm install && cp prisma/schema.postgres.prisma prisma/schema.prisma && npx prisma generate && npx prisma db push --accept-data-loss && npm run build
+    startCommand: node .next/standalone/server.js
+    healthCheckPath: /
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: khanhos-db
+          property: connectionString
+      - key: APP_URL
+        value: https://khanhos.onrender.com
+      - key: AI_RUNTIME
+        value: openrouter
+      - key: OPENROUTER_BASE_URL
+        value: https://openrouter.ai/api
+      - key: AI_MODEL
+        value: openrouter/free
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: AUTH_SECRET
+        generateValue: true
+      - key: OWNER_EMAIL
+        sync: false
+      - key: OWNER_PASSWORD
+        sync: false
+      - key: OWNER_NAME
+        value: Khanh
+
+databases:
+  - name: khanhos-db
+    plan: free

@@ -5,6 +5,7 @@
 import type { ProfileId } from "@/ai/models/profiles";
 import type { MemoryEntry, ToolResult } from "@/ai/core/types";
 import { personalityPrompt } from "@/ai/prompts/personality";
+import { rulesPrompt } from "@/ai/prompts/rules";
 
 // ─────────────────────────────────────────────
 // BASE — danh tính KhanhOS AI (ngắn gọn để tiết kiệm ngữ cảnh model nhỏ)
@@ -121,6 +122,7 @@ export interface ComposeContext {
 export function composeSystemPrompt(ctx: ComposeContext, maxChars = 2600): string {
   const parts: string[] = [
     basePrompt(ctx.language),
+    rulesPrompt(ctx.language),
     personalityPrompt(ctx.language), // persona thích ứng (Astra — cấu hình prompt-level)
     safetyPrompt(),
     modePrompt(ctx.profile),

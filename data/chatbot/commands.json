@@ -57,5 +57,10 @@
     "description": "Từ chối yêu cầu nâng cấp: /deny <id>",
     "usage": "/deny <id>",
     "owner_only": true
+  },
+  "/norule": {
+    "description": "Bật/tắt sandbox override owner/admin: /norule true|false|status|grant|use|revoke",
+    "usage": "/norule true | /norule false | /norule status | /norule grant <token> <scope> <minutes> | /norule use <token>",
+    "owner_only": true
   }
 }

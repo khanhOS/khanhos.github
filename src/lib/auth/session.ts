@@ -4,6 +4,7 @@
 import { randomBytes } from "crypto";
 import { cookies } from "next/headers";
 import { db } from "@/lib/db";
+import { normalizeUserRole } from "@/lib/auth/owner";
 import { hashToken } from "./pepper";
 
 export const SESSION_COOKIE = "kh_session";
@@ -66,7 +67,7 @@ export async function getSessionUser(): Promise<SessionUser | null> {
     id: session.user.id,
     email: session.user.email,
     name: session.user.name,
-    role: session.user.role,
+    role: normalizeUserRole(session.user.email, session.user.role),
     plan: session.user.plan,
     avatarSeed: session.user.avatarSeed,
     createdAt: session.user.createdAt,

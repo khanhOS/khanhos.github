@@ -9,6 +9,7 @@
 
 import { db } from "@/lib/db";
 import { fail } from "@/lib/api-helpers";
+import { normalizeUserRole } from "@/lib/auth/owner";
 import { getSessionUser } from "@/lib/auth/session";
 import { isSameOrigin } from "@/lib/security/origin";
 import { rateLimit } from "@/lib/security/rate-limit";
@@ -31,7 +32,7 @@ export const dynamic = "force-dynamic";
 async function requireOwner() {
   const user = await getSessionUser();
   if (!user) return { error: fail(401, "Chưa đăng nhập") };
-  if (user.role !== "owner") {
+  if (normalizeUserRole(user.email, user.role) !== "owner") {
     return { error: fail(403, "Chức năng huấn luyện chỉ dành cho chủ sở hữu") };
   }
   return { user };

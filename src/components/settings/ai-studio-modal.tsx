@@ -37,6 +37,7 @@ import {
   Cpu,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { isOwnerRole } from "@/lib/auth/owner";
 
 // ─────────────────────────────────────────────
 // Types (khớp API responses)
@@ -146,7 +147,7 @@ export function AIStudioModal() {
   const [epochs, setEpochs] = useState(3);
   const [datasetName, setDatasetName] = useState("");
 
-  const isOwner = user?.role === "owner";
+  const isOwner = isOwnerRole(user?.email, user?.role);
 
   const loadKnowledge = useCallback(() => {
     fetch("/api/knowledge")

@@ -18,6 +18,7 @@ import { useChatStore } from "@/store/use-chat-store";
 import { useToast } from "@/hooks/use-toast";
 import { LogOut, Mail, CalendarDays, Hash, Pencil, Check, X, Loader2, Crown, Sparkles, Database } from "lucide-react";
 import { PLANS } from "@/lib/plans";
+import { isOwnerRole } from "@/lib/auth/owner";
 
 export function AccountModal() {
   const open = useUIStore((s) => s.accountModalOpen);
@@ -79,7 +80,7 @@ export function AccountModal() {
     .join("")
     .toUpperCase();
 
-  const isOwner = user.role === "owner";
+  const isOwner = isOwnerRole(user.email, user.role);
 
   const handleLogout = async () => {
     await logout();

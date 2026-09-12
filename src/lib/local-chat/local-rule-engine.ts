@@ -60,7 +60,7 @@ export class LocalRuleEngine implements ChatEngine {
         const out = await runDbCommand(cmd.name, cmd.args, input.user);
         text = out.text;
       } else {
-        const out = runCommand(cmd.name, data, input.user);
+        const out = runCommand(cmd.name, data, input.user, cmd.args);
         text = out?.text ?? def.response ?? def.description;
       }
 

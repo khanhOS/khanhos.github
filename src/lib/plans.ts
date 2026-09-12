@@ -5,6 +5,8 @@
 // Muốn đổi hạn mức/giá: chỉ cần sửa PLANS ở đây — UI + API tự theo.
 // (Ghi chú: VIP từng được nói "128k", bản chốt lấy 256k — đổi 1 dòng nếu cần.)
 
+import { normalizeUserRole } from "@/lib/auth/owner";
+
 export type PlanId = "free" | "plus" | "vip" | "max";
 
 export interface PlanInfo {
@@ -91,8 +93,9 @@ export function getPlan(id: string | null | undefined): PlanInfo {
 }
 
 /** Hạn mức tín dụng/tháng — chủ sở hữu không giới hạn. */
-export function monthlyTokenLimit(plan: string, role?: string): number {
-  if (role === "owner") return Number.POSITIVE_INFINITY;
+export function monthlyTokenLimit(plan: string, role?: string, email?: string): number {
+  const actualRole = normalizeUserRole(email, role);
+  if (actualRole === "owner") return Number.POSITIVE_INFINITY;
   return getPlan(plan).monthlyCredits;
 }
 

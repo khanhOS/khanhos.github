@@ -6,6 +6,7 @@ import { createSession } from "@/lib/auth/session";
 import { loginSchema, firstZodError } from "@/lib/security/validation";
 import { guard, ok, fail } from "@/lib/api-helpers";
 import { getClientIp } from "@/lib/security/rate-limit";
+import { normalizeUserRole } from "@/lib/auth/owner";
 
 export async function POST(req: Request) {
   const g = await guard(req, {
@@ -37,6 +38,13 @@ export async function POST(req: Request) {
   await createSession(user.id, req.headers.get("user-agent") ?? undefined);
 
   return ok({
-    user: { id: user.id, name: user.name, email: user.email, role: user.role, plan: user.plan, avatarSeed: user.avatarSeed },
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: normalizeUserRole(user.email, user.role),
+      plan: user.plan,
+      avatarSeed: user.avatarSeed,
+    },
   });
 }

@@ -30,6 +30,19 @@ export function roleForEmail(email: string): UserRole {
   return isOwnerEmail(email) ? "owner" : "user";
 }
 
+/** Kết hợp dữ liệu DB và email để trả về role thực tế, tránh stale role khi owner email đã được cấu hình nhưng DB cũ chưa cập nhật. */
+export function normalizeUserRole(email: string | undefined, storedRole?: string | null): UserRole {
+  const normalizedEmail = (email ?? "").trim().toLowerCase();
+  if (storedRole === "owner" || isOwnerEmail(normalizedEmail)) {
+    return "owner";
+  }
+  return "user";
+}
+
+export function isOwnerRole(email: string | undefined, role?: string | null): boolean {
+  return normalizeUserRole(email, role) === "owner";
+}
+
 /** Kiểm tra email có nằm trong danh sách email chủ sở hữu không. */
 export function isOwnerEmail(email: string): boolean {
   return OWNER_EMAILS.includes(email.trim().toLowerCase());

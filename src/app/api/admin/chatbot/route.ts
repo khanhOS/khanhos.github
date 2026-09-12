@@ -3,6 +3,7 @@
 // POST /api/admin/chatbot/test   — Test 1 message qua engine (kết quả + debug) (owner)
 
 import { guard, ok, fail } from "@/lib/api-helpers";
+import { normalizeUserRole } from "@/lib/auth/owner";
 import {
   getChatbotData,
   listDataFiles,
@@ -16,7 +17,7 @@ export const dynamic = "force-dynamic";
 export async function GET(req: Request) {
   const g = await guard(req, { requireAuth: true });
   if (g.response) return g.response;
-  if (g.user!.role !== "owner") return fail(403, "Chỉ chủ sở hữu mới được quản trị tri thức");
+  if (normalizeUserRole(g.user!.email, g.user!.role) !== "owner") return fail(403, "Chỉ chủ sở hữu mới được quản trị tri thức");
 
   // GET ?file=<path> — đọc nội dung 1 file dữ liệu (whitelist)
   const url = new URL(req.url);
@@ -40,7 +41,7 @@ export async function GET(req: Request) {
 export async function PUT(req: Request) {
   const g = await guard(req, { requireAuth: true });
   if (g.response) return g.response;
-  if (g.user!.role !== "owner") return fail(403, "Chỉ chủ sở hữu mới được quản trị tri thức");
+  if (normalizeUserRole(g.user!.email, g.user!.role) !== "owner") return fail(403, "Chỉ chủ sở hữu mới được quản trị tri thức");
 
   const body = await req.json().catch(() => null);
   const path = typeof body?.path === "string" ? body.path : "";
@@ -86,7 +87,7 @@ export async function PUT(req: Request) {
 export async function POST(req: Request) {
   const g = await guard(req, { requireAuth: true });
   if (g.response) return g.response;
-  if (g.user!.role !== "owner") return fail(403, "Chỉ chủ sở hữu mới được quản trị tri thức");
+  if (normalizeUserRole(g.user!.email, g.user!.role) !== "owner") return fail(403, "Chỉ chủ sở hữu mới được quản trị tri thức");
 
   const body = await req.json().catch(() => null);
   const message = typeof body?.message === "string" ? body.message : "";

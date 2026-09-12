@@ -4,6 +4,7 @@
 
 import { db } from "@/lib/db";
 import { guard, ok, fail } from "@/lib/api-helpers";
+import { normalizeUserRole } from "@/lib/auth/owner";
 import { planDecisionSchema, firstZodError } from "@/lib/security/validation";
 import { getPlan } from "@/lib/plans";
 
@@ -14,7 +15,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   if (g.response) return g.response;
   const user = g.user!;
 
-  if (user.role !== "owner") {
+  if (normalizeUserRole(user.email, user.role) !== "owner") {
     return fail(403, "Chỉ chủ sở hữu mới duyệt được yêu cầu");
   }
 

@@ -24,6 +24,7 @@ import {
   Wallet, Copy, CheckCircle2, Crown, ShieldCheck, Smartphone,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { isOwnerRole } from "@/lib/auth/owner";
 
 // ── Types (khớp /api/plans + /api/plan-requests) ──
 interface PlansPayload {
@@ -103,7 +104,7 @@ export function PlansModal() {
   const [requests, setRequests] = useState<AdminRequest[] | null>(null);
   const [decidingId, setDecidingId] = useState<string | null>(null);
 
-  const isOwner = user?.role === "owner";
+  const isOwner = isOwnerRole(user?.email, user?.role);
 
   // Load dữ liệu khi mở modal
   useEffect(() => {
@@ -114,13 +115,13 @@ export function PlansModal() {
       .then((d) => setData(d ?? null))
       .catch(() => setData(null))
       .finally(() => setLoading(false));
-    if (user?.role === "owner") {
+    if (isOwner) {
       fetch("/api/plan-requests")
         .then((r) => r.json())
         .then((d) => setRequests(d?.requests ?? []))
         .catch(() => setRequests([]));
     }
-  }, [open, user?.role]);
+  }, [open, isOwner]);
 
   // Reset khi đóng
   useEffect(() => {

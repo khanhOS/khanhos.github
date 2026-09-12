@@ -6,6 +6,7 @@
 
 import { db } from "@/lib/db";
 import { guard, ok, fail } from "@/lib/api-helpers";
+import { normalizeUserRole } from "@/lib/auth/owner";
 import { getClientIp } from "@/lib/security/rate-limit";
 import { planRequestSchema, firstZodError } from "@/lib/security/validation";
 import { getPlan } from "@/lib/plans";
@@ -57,7 +58,7 @@ export async function GET(req: Request) {
   if (g.response) return g.response;
   const user = g.user!;
 
-  if (user.role !== "owner") {
+  if (normalizeUserRole(user.email, user.role) !== "owner") {
     return fail(403, "Chỉ chủ sở hữu mới xem được danh sách yêu cầu");
   }
 

@@ -2,6 +2,7 @@
 // Đếm tổng mức dùng (Message.tokens) của user trong tháng lịch hiện tại.
 
 import { db } from "@/lib/db";
+import { normalizeUserRole } from "@/lib/auth/owner";
 import { monthlyTokenLimit, getPlan, formatCredits } from "@/lib/plans";
 
 export interface PlanUsage {
@@ -31,12 +32,13 @@ export async function getMonthlyUsage(userId: string): Promise<number> {
 }
 
 /** Thông tin gói + usage hiện tại của user. */
-export async function getPlanUsage(plan: string, role: string, userId: string): Promise<PlanUsage> {
+export async function getPlanUsage(plan: string, role: string, userId: string, email?: string): Promise<PlanUsage> {
+  const actualRole = normalizeUserRole(email, role);
   const usage = await getMonthlyUsage(userId);
-  const limit = monthlyTokenLimit(plan, role);
+  const limit = monthlyTokenLimit(plan, actualRole, email);
   return {
     plan,
-    planName: role === "owner" ? "Chủ sở hữu" : getPlan(plan).name,
+    planName: actualRole === "owner" ? "Chủ sở hữu" : getPlan(plan).name,
     usage,
     limit,
     remaining: Math.max(0, limit - usage),
@@ -44,16 +46,18 @@ export async function getPlanUsage(plan: string, role: string, userId: string): 
 }
 
 /** true nếu user đã vượt hạn mức tháng này. */
-export async function isOverQuota(plan: string, role: string, userId: string): Promise<boolean> {
-  const limit = monthlyTokenLimit(plan, role);
+export async function isOverQuota(plan: string, role: string, userId: string, email?: string): Promise<boolean> {
+  const actualRole = normalizeUserRole(email, role);
+  const limit = monthlyTokenLimit(plan, actualRole, email);
   if (!Number.isFinite(limit)) return false; // owner — không giới hạn
   const usage = await getMonthlyUsage(userId);
   return usage >= limit;
 }
 
 /** Thông báo lỗi quota thống nhất cho chat API. */
-export function quotaErrorMessage(plan: string, role: string, usage: number, limit: number): string {
-  if (role === "owner") return "Chủ sở hữu không bị giới hạn mức dùng.";
+export function quotaErrorMessage(plan: string, role: string, usage: number, limit: number, email?: string): string {
+  const actualRole = normalizeUserRole(email, role);
+  if (actualRole === "owner") return "Chủ sở hữu không bị giới hạn mức dùng.";
   const p = getPlan(plan);
   return (
     `Bạn đã dùng hết ${formatCredits(limit)} tín dụng của gói ${p.name} trong tháng này ` +

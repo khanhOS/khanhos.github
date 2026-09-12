@@ -4,6 +4,7 @@
 
 import { db } from "@/lib/db";
 import { guard, ok } from "@/lib/api-helpers";
+import { normalizeUserRole } from "@/lib/auth/owner";
 import { getRuntimeStatus } from "@/ai";
 import { getDiagnosticsSummary, getRecentRequests } from "@/ai/observability/diagnostics";
 import { listToolDefs } from "@/ai/tools/registry";
@@ -13,7 +14,7 @@ export const dynamic = "force-dynamic";
 export async function GET(req: Request) {
   const g = await guard(req, { requireAuth: true });
   if (g.response) return g.response;
-  if (!g.user || g.user.role !== "owner") {
+  if (!g.user || normalizeUserRole(g.user.email, g.user.role) !== "owner") {
     return Response.json({ error: "Chỉ chủ sở hữu" }, { status: 403 });
   }
 

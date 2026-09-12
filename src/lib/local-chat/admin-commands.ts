@@ -4,6 +4,7 @@
 // Chặn user thường bằng thông báo rõ ràng, không đổi dữ liệu.
 
 import { db } from "@/lib/db";
+import { isOwnerRole } from "@/lib/auth/owner";
 import { getMonthlyUsage } from "@/lib/plan-usage";
 import { getPlan, monthlyTokenLimit, formatCredits, PLANS } from "@/lib/plans";
 import type { EngineUserContext } from "./types";
@@ -81,7 +82,7 @@ async function cmdUsage(user: EngineUserContext): Promise<DbCommandOutput> {
 }
 
 async function cmdGive(args: string[], user: EngineUserContext): Promise<DbCommandOutput> {
-  if (user.role !== "owner") return denyOwnerOnly("/give");
+  if (!isOwnerRole(user.email, user.role)) return denyOwnerOnly("/give");
   if (args.length < 2) return syntaxHint("/give", "<free|plus|vip|max> <email hoặc ID>");
 
   const planId = args[0].toLowerCase();
@@ -108,7 +109,7 @@ async function cmdGive(args: string[], user: EngineUserContext): Promise<DbComma
 }
 
 async function cmdUser(args: string[], user: EngineUserContext): Promise<DbCommandOutput> {
-  if (user.role !== "owner") return denyOwnerOnly("/user");
+  if (!isOwnerRole(user.email, user.role)) return denyOwnerOnly("/user");
   if (!args.length) return syntaxHint("/user", "<email hoặc ID>");
 
   const target = await findUser(args.join(" "));
@@ -120,7 +121,7 @@ async function cmdUser(args: string[], user: EngineUserContext): Promise<DbComma
   const limit = monthlyTokenLimit(target.plan, target.role);
   const usage = await getMonthlyUsage(target.id);
   const conversations = await db.conversation.count({ where: { userId: target.id } });
-  const roleLabel = target.role === "owner" ? " 👑 chủ sở hữu" : "";
+  const roleLabel = isOwnerRole(target.email, target.role) ? " 👑 chủ sở hữu" : "";
 
   const limitText = Number.isFinite(limit)
     ? `**${plan.name}** — ${formatCredits(limit)} tín dụng/tháng`
@@ -136,7 +137,7 @@ async function cmdUser(args: string[], user: EngineUserContext): Promise<DbComma
 }
 
 async function cmdPending(user: EngineUserContext): Promise<DbCommandOutput> {
-  if (user.role !== "owner") return denyOwnerOnly("/pending");
+  if (!isOwnerRole(user.email, user.role)) return denyOwnerOnly("/pending");
 
   const requests = await db.planRequest.findMany({
     where: { status: "pending" },
@@ -164,7 +165,7 @@ async function cmdDecide(
   args: string[],
   user: EngineUserContext
 ): Promise<DbCommandOutput> {
-  if (user.role !== "owner") return denyOwnerOnly(name);
+  if (!isOwnerRole(user.email, user.role)) return denyOwnerOnly(name);
   const approve = name === "/approve";
   if (!args.length) {
     return syntaxHint(name, "<id — chấp nhận cả id viết tắt ≥ 4 ký tự>");

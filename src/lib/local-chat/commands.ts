@@ -5,10 +5,42 @@
 
 import type { ChatbotData, EngineUserContext } from "./types";
 import { LOCAL_MODELS } from "@/lib/models";
+import { isOwnerRole } from "@/lib/auth/owner";
 
 export interface CommandOutput {
   text: string;
   action?: string;
+}
+
+const NORULE_TTL_MINUTES = 120;
+const noruleState = {
+  enabled: false,
+  createdBy: null as string | null,
+  scope: "chat" as "chat" | "coding" | "agent" | "search" | "global",
+  expiresAt: null as number | null,
+  reason: "",
+  grants: new Map<string, { token: string; scope: string; expiresAt: number; createdBy: string; used: boolean }>(),
+};
+
+function isOwnerOrAdmin(user?: EngineUserContext): boolean {
+  return isOwnerRole(user?.email, user?.role) || user?.role === "admin";
+}
+
+function renderNoruleStatus(user?: EngineUserContext): string {
+  const admin = isOwnerOrAdmin(user);
+  if (!admin) {
+    return "Bạn không có quyền sử dụng /norule. Chỉ owner/admin mới được bật override sandbox.";
+  }
+
+  const active = noruleState.enabled && noruleState.expiresAt && noruleState.expiresAt > Date.now();
+  const remaining = active && noruleState.expiresAt ? Math.max(0, Math.ceil((noruleState.expiresAt - Date.now()) / 60000)) : 0;
+
+  return [
+    `Sandbox override: ${active ? "ĐANG BẬT" : "TẮT"}`,
+    active ? `Phạm vi: ${noruleState.scope} • còn ${remaining} phút` : "Không có override đang hoạt động.",
+    "Hệ thống vẫn ghi log, giới hạn phạm vi và không cho phép truy cập bí mật / quyền production-critical.",
+    "Cú pháp: /norule true | /norule false | /norule status | /norule grant <token> <scope> <minutes> | /norule use <token> | /norule revoke <token>",
+  ].join("\n");
 }
 
 /** Tách "/give plus a@b.c" → { name: "/give", args: ["plus", "a@b.c"], rest: "plus a@b.c" }. */
@@ -30,7 +62,7 @@ function commandList(data: ChatbotData, owner: boolean): Array<[string, string]>
 }
 
 function helpText(data: ChatbotData, user?: EngineUserContext): string {
-  const owner = user?.role === "owner";
+  const owner = isOwnerOrAdmin(user);
   const lines: string[] = [];
 
   lines.push("Lệnh mình hiểu được:\n");
@@ -58,10 +90,94 @@ function helpText(data: ChatbotData, user?: EngineUserContext): string {
 export function runCommand(
   name: string,
   data: ChatbotData,
-  user?: EngineUserContext
+  user?: EngineUserContext,
+  args: string[] = []
 ): CommandOutput | null {
   const def = data.commands[name];
   if (!def) return null;
+
+  if (name === "/norule") {
+    const role = user?.role;
+    if (!isOwnerOrAdmin(user)) {
+      return { text: "Bạn không có quyền sử dụng /norule. Chỉ owner/admin mới được bật override sandbox." };
+    }
+
+    const action = (args[0] ?? "status").toLowerCase();
+
+    if (action === "true") {
+      noruleState.enabled = true;
+      noruleState.createdBy = role ?? "owner";
+      noruleState.scope = "chat";
+      noruleState.expiresAt = Date.now() + NORULE_TTL_MINUTES * 60000;
+      noruleState.reason = "owner/admin sandbox override";
+      return {
+        text: `Override sandbox đã được bật. Phạm vi: ${noruleState.scope}. Hết hạn sau ${NORULE_TTL_MINUTES} phút. Vẫn ghi log và giới hạn quyền an toàn.`,
+      };
+    }
+
+    if (action === "false") {
+      noruleState.enabled = false;
+      noruleState.createdBy = null;
+      noruleState.expiresAt = null;
+      noruleState.reason = "";
+      return { text: "Override sandbox đã tắt. Trạng thái quay về chế độ chuẩn của rule engine." };
+    }
+
+    if (action === "status") {
+      return { text: renderNoruleStatus(user) };
+    }
+
+    if (action === "grant") {
+      const token = args[1];
+      const scope = args[2] ?? "chat";
+      const minutes = Number(args[3] ?? NORULE_TTL_MINUTES);
+      if (!token) {
+        return { text: "Cú pháp: /norule grant <token> <scope> <minutes>" };
+      }
+      const expiresAt = Date.now() + Math.max(15, Math.min(120, Number.isFinite(minutes) ? minutes : NORULE_TTL_MINUTES)) * 60000;
+      noruleState.grants.set(token, {
+        token,
+        scope,
+        expiresAt,
+        createdBy: role ?? "owner",
+        used: false,
+      });
+      return {
+        text: `Token sandbox đã cấp: **${token}** • scope: **${scope}** • hết hạn: **${Math.max(15, Math.min(120, Number.isFinite(minutes) ? minutes : NORULE_TTL_MINUTES))} phút**`,
+      };
+    }
+
+    if (action === "use") {
+      const token = args[1];
+      if (!token) {
+        return { text: "Cú pháp: /norule use <token>" };
+      }
+      const grant = noruleState.grants.get(token);
+      if (!grant || grant.used || grant.expiresAt < Date.now()) {
+        return { text: `Token **${token}** không hợp lệ hoặc đã hết hạn.` };
+      }
+      grant.used = true;
+      noruleState.enabled = true;
+      noruleState.createdBy = role ?? "owner";
+      noruleState.scope = (grant.scope as typeof noruleState.scope) ?? "chat";
+      noruleState.expiresAt = grant.expiresAt;
+      noruleState.reason = "token grant sandbox";
+      return {
+        text: `Token **${token}** hợp lệ. Sandbox đã được kích hoạt theo scope **${grant.scope}** trong thời gian còn lại.`,
+      };
+    }
+
+    if (action === "revoke") {
+      const token = args[1];
+      if (!token) {
+        return { text: "Cú pháp: /norule revoke <token>" };
+      }
+      const ok = noruleState.grants.delete(token);
+      return { text: ok ? `Đã thu hồi token **${token}**.` : `Token **${token}** không tồn tại.` };
+    }
+
+    return { text: renderNoruleStatus(user) };
+  }
 
   switch (name) {
     case "/help":
@@ -112,7 +228,7 @@ export function unknownCommandText(
   data: ChatbotData,
   user?: EngineUserContext
 ): string {
-  const owner = user?.role === "owner";
+  const owner = isOwnerOrAdmin(user);
   const known = commandList(data, owner).map(([n]) => n);
   return (
     `Mình không có lệnh **${name}**.\n\n` +

@@ -23,6 +23,7 @@ import {
   TriangleAlert, ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { isOwnerRole } from "@/lib/auth/owner";
 
 interface AdminStats {
   intents: number;
@@ -73,7 +74,7 @@ export function KnowledgeAdminModal() {
   const [fileDirty, setFileDirty] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const isOwner = user?.role === "owner";
+  const isOwner = isOwnerRole(user?.email, user?.role);
 
   const loadOverview = useCallback(async () => {
     setLoading(true);

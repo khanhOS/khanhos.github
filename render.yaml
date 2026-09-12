@@ -4,7 +4,7 @@ services:
     runtime: node
     plan: free
     buildCommand: npm install && cp prisma/schema.postgres.prisma prisma/schema.prisma && npx prisma generate && npx prisma db push --accept-data-loss && npm run build
-    startCommand: node .next/standalone/server.js
+    startCommand: HOSTNAME=0.0.0.0 node .next/standalone/server.js
     healthCheckPath: /
     envVars:
       - key: NODE_ENV

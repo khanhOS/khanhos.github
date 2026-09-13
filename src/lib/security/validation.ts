@@ -85,6 +85,9 @@ export const conversationPatchSchema = z.object({
 
 export const settingsPatchSchema = z.object({
   defaultModelId: z.string().max(64).nullable().optional(),
+  providerApiKey: z.string().trim().max(512).nullable().optional(),
+  providerApiKeyName: z.string().trim().max(80).nullable().optional(),
+  providerModel: z.string().trim().max(128).nullable().optional(),
   webSearchEnabled: z.boolean().optional(),
   reducedMotionPref: z.enum(["system", "on", "off"]).optional(),
   theme: z.enum(["dark", "light", "system"]).optional(),

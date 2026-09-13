@@ -25,6 +25,7 @@ import { getAIOrchestrator, getRuntimeStatus } from "@/ai";
 import { recordRequest } from "@/ai/observability/diagnostics";
 import { retrieveKnowledge, formatRetrievedKnowledge } from "@/ai/knowledge/retrieval";
 import type { HistoryMessage } from "@/ai/context/manager";
+import { decryptSecret } from "@/lib/security/secrets";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
@@ -256,7 +257,18 @@ export async function POST(req: Request) {
   // ═══════════════════════════════════════════
   const isCommand = userText.trim().startsWith("/");
   const wantRuntimeModel = input.modelId.startsWith("runtime:");
-  const orch = await getAIOrchestrator(); // null nếu không có runtime model
+  const storedSettings = await db.userSettings.findUnique({ where: { userId: user.id } });
+  let customApiKey: string | undefined;
+  let customModel: string | undefined;
+  if (storedSettings?.providerApiKey) {
+    try {
+      customApiKey = decryptSecret(storedSettings.providerApiKey);
+    } catch {
+      console.error("[chat] Không giải mã được provider API key");
+    }
+  }
+  customModel = storedSettings?.providerModel?.trim() || undefined;
+  const orch = await getAIOrchestrator(customApiKey, customModel); // null nếu không có runtime model
 
   // 6a. LÀNH LỆNH /xxx → luôn dùng rules engine (deterministic, không tốn model)
   if (isCommand || !orch || !orch.status.defaultModel) {

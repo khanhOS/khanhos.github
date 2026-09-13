@@ -71,10 +71,14 @@ async function probe(
 }
 
 /** Trạng thái runtime hiện tại (cache theo probeCacheMs). */
-export async function getRuntimeStatus(force = false): Promise<RuntimeStatus> {
+export async function getRuntimeStatus(
+  force = false,
+  customApiKey?: string,
+  customModel?: string
+): Promise<RuntimeStatus> {
   const cfg = getAIRuntimeConfig();
   const now = Date.now();
-  const cached = g.__khanhosRuntimeStatus;
+  const cached = customApiKey ? undefined : g.__khanhosRuntimeStatus;
 
   if (
     !force &&
@@ -88,7 +92,7 @@ export async function getRuntimeStatus(force = false): Promise<RuntimeStatus> {
   }
 
   // Tránh dồn dập probe khi nhiều request đến cùng lúc
-  if (g.__khanhosRuntimeProbing) return g.__khanhosRuntimeProbing;
+  if (g.__khanhosRuntimeProbing && !customApiKey) return g.__khanhosRuntimeProbing;
 
   const p = (async (): Promise<RuntimeStatus> => {
     let status: RuntimeStatus = {
@@ -104,7 +108,12 @@ export async function getRuntimeStatus(force = false): Promise<RuntimeStatus> {
           : "Chưa có runtime model cục bộ nào",
     };
 
-    if (cfg.mode === "none") {
+    if (customApiKey) {
+      status = await probe(
+        new OpenAICompatAdapter(cfg.openrouterBaseUrl, customModel ?? cfg.defaultModel, "openrouter", customApiKey, customModel),
+        "openrouter"
+      );
+    } else if (cfg.mode === "none") {
       // chủ sở hữu chủ động tắt
     } else if (cfg.mode === "ollama") {
       status = await probe(new OllamaAdapter(), "ollama");
@@ -117,7 +126,7 @@ export async function getRuntimeStatus(force = false): Promise<RuntimeStatus> {
       );
     } else if (cfg.mode === "openrouter") {
       status = await probe(
-        new OpenAICompatAdapter(cfg.openrouterBaseUrl, cfg.defaultModel, "openrouter"),
+        new OpenAICompatAdapter(cfg.openrouterBaseUrl, cfg.defaultModel, "openrouter", customApiKey),
         "openrouter"
       );
     } else {
@@ -129,14 +138,16 @@ export async function getRuntimeStatus(force = false): Promise<RuntimeStatus> {
       }
     }
 
-    g.__khanhosRuntimeStatus = status;
-    g.__khanhosRuntimeProbeAt = Date.now();
+    if (!customApiKey) {
+      g.__khanhosRuntimeStatus = status;
+      g.__khanhosRuntimeProbeAt = Date.now();
+    }
     return status;
   })();
 
-  g.__khanhosRuntimeProbing = p;
+  if (!customApiKey) g.__khanhosRuntimeProbing = p;
   const result = await p;
-  g.__khanhosRuntimeProbing = null;
+  if (!customApiKey) g.__khanhosRuntimeProbing = null;
   return result;
 }
 

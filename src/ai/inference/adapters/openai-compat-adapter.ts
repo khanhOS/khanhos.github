@@ -55,11 +55,14 @@ export class OpenAICompatAdapter implements ModelAdapter {
   private readonly base: string;
   private readonly model: string;
   private readonly mode: "openai-compat" | "cerebras" | "openrouter";
+  private readonly customApiKey?: string;
 
   constructor(
     baseUrl?: string,
     model?: string,
-    mode?: "openai-compat" | "cerebras" | "openrouter"
+    mode?: "openai-compat" | "cerebras" | "openrouter",
+    customApiKey?: string,
+    customModel?: string
   ) {
     const cfg = getAIRuntimeConfig();
     this.mode =
@@ -75,12 +78,14 @@ export class OpenAICompatAdapter implements ModelAdapter {
           ? cfg.openrouterBaseUrl
           : cfg.openaiCompatBaseUrl)
     ).replace(/\/$/, "");
-    this.model = model ?? cfg.defaultModel;
+    this.model = customModel ?? model ?? cfg.defaultModel;
+    this.customApiKey = customApiKey;
   }
 
   private headers(): Record<string, string> {
     const headers: Record<string, string> = { "Content-Type": "application/json" };
     const key =
+      this.customApiKey ??
       this.mode === "cerebras"
         ? getAIRuntimeConfig().cerebrasApiKey
         : this.mode === "openrouter"
@@ -104,10 +109,10 @@ export class OpenAICompatAdapter implements ModelAdapter {
     if (!allowed) {
       throw new Error(`Bảo mật: từ chối endpoint ngoài (${this.base}).`);
     }
-    if (this.mode === "cerebras" && !getAIRuntimeConfig().cerebrasApiKey) {
+    if (this.mode === "cerebras" && !this.customApiKey && !getAIRuntimeConfig().cerebrasApiKey) {
       throw new Error("CEREBRAS_API_KEY chưa được cấu hình.");
     }
-    if (this.mode === "openrouter" && !getAIRuntimeConfig().openrouterApiKey) {
+    if (this.mode === "openrouter" && !this.customApiKey && !getAIRuntimeConfig().openrouterApiKey) {
       throw new Error("OPENROUTER_API_KEY chưa được cấu hình.");
     }
   }

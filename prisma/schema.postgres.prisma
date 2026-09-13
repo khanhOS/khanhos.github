@@ -102,6 +102,9 @@ model Message {
 model UserSettings {
   userId            String  @id
   defaultModelId    String?
+  providerApiKey    String?
+  providerApiKeyName String?
+  providerModel     String?
   webSearchEnabled  Boolean @default(false)
   reducedMotionPref String? // "system" | "on" | "off"
   theme             String? // "dark" | "light" | "system"

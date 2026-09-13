@@ -1,9 +1,8 @@
-// KhanhOS AI — Settings modal: model mặc định, web search, reduced motion pref
+// KhanhOS AI — Settings modal: provider key/model, web search, reduced motion pref
 
 "use client";
 
 import { useEffect, useState } from "react";
-import { motion } from "framer-motion";
 import { useTheme } from "next-themes";
 import {
   Dialog,
@@ -18,8 +17,9 @@ import { useAuthStore } from "@/store/use-auth-store";
 import { useChatStore } from "@/store/use-chat-store";
 import { useToast } from "@/hooks/use-toast";
 import type { UserSettings } from "@/types/chat";
-import { Globe, Sparkles, Wand2, Info, Sun, Moon, Monitor, Cpu, CheckCircle2, CircleOff } from "lucide-react";
+import { Globe, Sparkles, Wand2, Info, Sun, Moon, Monitor, Cpu, CheckCircle2, CircleOff, KeyRound, Eye, EyeOff, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { isOwnerRole } from "@/lib/auth/owner";
 
 interface RuntimeStatusInfo {
   available: boolean;
@@ -32,20 +32,28 @@ export function SettingsModal() {
   const open = useUIStore((s) => s.settingsModalOpen);
   const setOpen = useUIStore((s) => s.setSettingsModalOpen);
   const user = useAuthStore((s) => s.user);
-  const models = useChatStore((s) => s.models);
   const { toast } = useToast();
   const { setTheme } = useTheme();
 
   const [settings, setSettings] = useState<UserSettings | null>(null);
   const [saving, setSaving] = useState(false);
   const [runtime, setRuntime] = useState<RuntimeStatusInfo | null>(null);
+  const [apiKeyDraft, setApiKeyDraft] = useState("");
+  const [apiKeyNameDraft, setApiKeyNameDraft] = useState("");
+  const [modelDraft, setModelDraft] = useState("");
+  const [showApiKey, setShowApiKey] = useState(false);
 
   // Load settings khi mở
   useEffect(() => {
     if (open && user) {
       fetch("/api/settings")
         .then((r) => r.json())
-        .then((d) => setSettings(d?.settings ?? null))
+        .then((d) => {
+          setSettings(d?.settings ?? null);
+          setApiKeyDraft("");
+          setApiKeyNameDraft(d?.settings?.providerApiKeyName ?? "");
+          setModelDraft(d?.settings?.providerModel ?? "");
+        })
         .catch(() => setSettings(null));
       fetch("/api/models")
         .then((r) => r.json())
@@ -86,8 +94,6 @@ export function SettingsModal() {
       setSaving(false);
     }
   };
-
-  const availableModels = models.filter((m) => m.available);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -143,46 +149,93 @@ export function SettingsModal() {
                 </div>
               </div>
 
-              {/* Model mặc định */}
-              <div className="rounded-xl border border-foreground/8 bg-foreground/4 p-4">
-                <div className="flex items-center gap-2 pb-1">
-                  <Sparkles className="h-4 w-4 text-primary" />
-                  <span className="text-sm font-medium">Model mặc định</span>
-                </div>
-                <p className="pb-3 text-xs text-muted-foreground">
-                  Model dùng khi bắt đầu cuộc trò chuyện mới.
-                </p>
-                <div className="grid grid-cols-1 gap-1.5">
-                  {availableModels.map((model) => (
+              {isOwnerRole(user.email, user.role) && (
+                <div className="rounded-xl border border-foreground/8 bg-foreground/4 p-4">
+                  <div className="flex items-center gap-2 pb-1">
+                    <KeyRound className="h-4 w-4 text-primary" />
+                    <span className="text-sm font-medium">API key nhà cung cấp AI</span>
+                  </div>
+                  <p className="pb-3 text-xs leading-relaxed text-muted-foreground">
+                    Key được mã hóa trên server và chỉ dùng cho tài khoản owner. Không hiển thị đầy đủ sau khi lưu.
+                  </p>
+                  <label className="mb-2 block text-xs font-medium text-foreground/80">Model ID</label>
+                  <input
+                    type="text"
+                    value={modelDraft}
+                    onChange={(e) => setModelDraft(e.target.value)}
+                    onBlur={() => {
+                      const value = modelDraft.trim();
+                      if (value !== (settings.providerModel ?? "")) void patch({ providerModel: value || null });
+                    }}
+                    placeholder="openai/gpt-4o-mini hoặc meta-llama/llama-3.3-70b-instruct:free"
+                    className="mb-3 h-9 w-full rounded-lg border border-foreground/10 bg-background/40 px-3 text-xs outline-none transition-colors focus:border-primary/50"
+                    autoComplete="off"
+                  />
+                  <label className="mb-2 block text-xs font-medium text-foreground/80">API key name</label>
+                  <input
+                    type="text"
+                    value={apiKeyNameDraft}
+                    onChange={(e) => setApiKeyNameDraft(e.target.value)}
+                    onBlur={() => {
+                      const value = apiKeyNameDraft.trim();
+                      if (value !== (settings.providerApiKeyName ?? "")) {
+                        void patch({ providerApiKeyName: value || null });
+                      }
+                    }}
+                    placeholder="OpenRouter key chính"
+                    className="mb-3 h-9 w-full rounded-lg border border-foreground/10 bg-background/40 px-3 text-xs outline-none transition-colors focus:border-primary/50"
+                    autoComplete="off"
+                  />
+                  <div className="flex gap-2">
+                    <div className="relative min-w-0 flex-1">
+                      <input
+                        type={showApiKey ? "text" : "password"}
+                        value={apiKeyDraft}
+                        onChange={(e) => setApiKeyDraft(e.target.value)}
+                        placeholder={settings.providerApiKeyConfigured ? "Đã cấu hình — nhập key mới để thay thế" : "sk-or-v1-…"}
+                        className="h-9 w-full rounded-lg border border-foreground/10 bg-background/40 px-3 pr-9 text-xs outline-none transition-colors focus:border-primary/50"
+                        autoComplete="off"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowApiKey((v) => !v)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        aria-label={showApiKey ? "Ẩn API key" : "Hiện API key"}
+                      >
+                        {showApiKey ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                      </button>
+                    </div>
                     <button
-                      key={model.id}
-                      onClick={() => patch({ defaultModelId: model.id })}
-                      className={cn(
-                        "flex items-center justify-between rounded-lg px-3 py-2 text-left text-[13px] transition-all",
-                        settings.defaultModelId === model.id
-                          ? "border border-primary/30 bg-primary/10 text-foreground"
-                          : "border border-transparent text-foreground/70 hover:bg-foreground/5"
-                      )}
+                      type="button"
+                      disabled={!apiKeyDraft.trim() || saving}
+                      onClick={() => {
+                        const value = apiKeyDraft.trim();
+                        if (!value) return;
+                        setApiKeyDraft("");
+                        void patch({ providerApiKey: value });
+                      }}
+                      className="rounded-lg bg-primary px-3 text-xs font-medium text-primary-foreground disabled:opacity-50"
                     >
-                      <span className="flex items-center gap-2">
-                        {model.name}
-                        {model.badge && (
-                          <span className="rounded-full bg-primary/15 border border-primary/25 px-1.5 py-px text-[10px] text-primary">
-                            {model.badge}
-                          </span>
-                        )}
-                      </span>
-                      {settings.defaultModelId === model.id && (
-                        <motion.span
-                          initial={{ scale: 0 }}
-                          animate={{ scale: 1 }}
-                          className="h-2 w-2 rounded-full bg-primary"
-                        />
-                      )}
+                      Lưu
                     </button>
-                  ))}
+                    {settings.providerApiKeyConfigured && (
+                      <button
+                        type="button"
+                        disabled={saving}
+                        onClick={() => patch({ providerApiKey: null })}
+                        className="rounded-lg border border-destructive/25 px-2.5 text-destructive hover:bg-destructive/10 disabled:opacity-50"
+                        aria-label="Xóa API key"
+                        title="Xóa API key"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
+                  <p className="mt-2 flex items-center gap-1.5 text-[11px] text-muted-foreground/70">
+                    {settings.providerApiKeyConfigured ? "API key đã được cấu hình." : "Chưa có API key riêng."}
+                  </p>
                 </div>
-              </div>
+              )}
 
               {/* Trạng thái hệ AI cục bộ (sự thật — không fake) */}
               <div className="rounded-xl border border-foreground/8 bg-foreground/4 p-4">

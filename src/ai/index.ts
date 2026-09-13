@@ -28,14 +28,14 @@ let cached: { key: string; orch: AIOrchestrator } | null = null;
  * Lấy orchestrator nếu runtime inference local THẬT đang chạy.
  * Trả null khi: không có runtime / runtime không khoẻ / chưa pull model.
  */
-export async function getAIOrchestrator(): Promise<AIOrchestrator | null> {
-  const status = await getRuntimeStatus();
+export async function getAIOrchestrator(customApiKey?: string, customModel?: string): Promise<AIOrchestrator | null> {
+  const status = await getRuntimeStatus(false, customApiKey, customModel);
   if (!status.available || !status.adapter || !status.defaultModel) {
     if (cached) cached = null;
     return null;
   }
 
-  const key = `${status.runtime}:${status.defaultModel.runtimeName}`;
+  const key = `${customApiKey ? "custom" : "env"}:${status.runtime}:${status.defaultModel.runtimeName}`;
   if (cached?.key === key) return cached.orch;
 
   const inference = new InferenceEngine(status.adapter);
@@ -87,4 +87,3 @@ export {
   checkTrainingRuntime,
 };
 export type { RuntimeStatus };
-

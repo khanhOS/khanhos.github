@@ -80,6 +80,10 @@ export interface ChatMessage {
 
 export interface UserSettings {
   defaultModelId: string;
+  providerApiKey?: string | null;
+  providerApiKeyConfigured?: boolean;
+  providerApiKeyName?: string | null;
+  providerModel?: string | null;
   webSearchEnabled: boolean;
   reducedMotionPref: "system" | "on" | "off";
   theme: "dark" | "light" | "system";

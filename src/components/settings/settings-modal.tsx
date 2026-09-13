@@ -65,7 +65,6 @@ export function SettingsModal() {
   const patch = async (partial: Partial<UserSettings>) => {
     if (!settings) return;
     const next = { ...settings, ...partial };
-    setSettings(next);
     setSaving(true);
     try {
       const res = await fetch("/api/settings", {
@@ -78,6 +77,8 @@ export function SettingsModal() {
         toast({ title: "Không lưu được cài đặt", description: d?.error, variant: "destructive" });
         return;
       }
+      const saved = await res.json();
+      setSettings(saved?.settings ?? next);
       // Sync trạng thái chat store
       if (partial.defaultModelId) {
         useChatStore.getState().setSelectedModelId(partial.defaultModelId);
